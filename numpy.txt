@@ -1,0 +1,15 @@
+shape
+T
+
+type()
+zeroes()
+ones()
+empty()
+array()
+linspace()
+random.seed()
+random.randint()
+sin(), cos(), tan()
+sum(), prod(), mean(), std(), var(), min(), max(), argmin(), argmax()
+vector @ vector = dot_product
+sort()
