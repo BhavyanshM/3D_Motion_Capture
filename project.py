@@ -72,11 +72,11 @@ print(T_est)
 # print(M_ext)
 # print(np.eye(3) @ K)
 
-# plt.plot(p[0,:], p[1,:], 'ro')
-# plt.title('Projection')
-# plt.xlabel('X')
-# plt.ylabel('Y')
-# plt.show()
+plt.plot(p[0,:], p[1,:], 'ro')
+plt.title('Projection')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.show()
 
 
 
