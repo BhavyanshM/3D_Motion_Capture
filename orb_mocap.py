@@ -100,12 +100,12 @@ print(F)
 
 # Find epilines corresponding to points in right image (second image) and
 # drawing its lines on left image
-lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,F)
+lines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,FundMat)
 lines1 = lines1.reshape(-1,3)
 img5,img6 = drawlines(img1,img2,lines1,pts1,pts2)
 # Find epilines corresponding to points in left image (first image) and
 # drawing its lines on right image
-lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1,F)
+lines2 = cv2.computeCorrespondEpilines(pts1.reshape(-1,1,2), 1,FundMat)
 lines2 = lines2.reshape(-1,3)
 img3,img4 = drawlines(img2,img1,lines2,pts2,pts1)
 

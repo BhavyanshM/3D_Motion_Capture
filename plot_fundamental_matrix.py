@@ -52,7 +52,6 @@ model, inliers = ransac((keypoints_left[matches[:, 0]],
                         FundamentalMatrixTransform, min_samples=8,
                         residual_threshold=1, max_trials=5000)
 
-print(model)
 
 inlier_keypoints_left = keypoints_left[matches[inliers, 0]]
 inlier_keypoints_right = keypoints_right[matches[inliers, 1]]
