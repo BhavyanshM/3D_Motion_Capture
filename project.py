@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 np.set_printoptions(formatter={'float': lambda x: "{0:0.2f}".format(x)})
 
 f, cx, cy = 512, 256, 256
-K = np.array([[f, 0, cx],[0, f, cy],[0, 0, 1]])
 
 N = 8
 P_M = np.array([[1, -1, 1, -1, 1, -1, 1, -1], 
@@ -14,11 +13,15 @@ P_M = np.array([[1, -1, 1, -1, 1, -1, 1, -1],
 				[1, 1, 1, 1, -1, -1, -1, -1], 
 				[1, 1, 1, 1, 1, 1, 1, 1	]	])
 
-rdx, rdy, rdz = 0, 0, 0
-tx, ty, tz = 0, 6, 6
+rdx, rdy, rdz = 5, 0, 0
+tx, ty, tz = 0, 5, 5
 
-def degToRad(dx,dy,dz)
-	return ax, ay, az = (rdx)*math.pi/180, (rdy)*math.pi/180, (rdz)*math.pi/180
+def cameraMatrix(f, cx, cy):
+	return np.array([[f, 0, cx],[0, f, cy],[0, 0, 1]])
+
+
+def degToRad(dx,dy,dz):
+	return (rdx)*math.pi/180, (rdy)*math.pi/180, (rdz)*math.pi/180
 
 
 def rotX(ax):
@@ -51,14 +54,22 @@ def unscaleH2D(points):
 	points[2,:] = np.divide(points[2,:], points[2,:])
 	return points
 
+def plotXY(points):
+	plt.plot(points[0,:], points[1,:], 'ro')
+	plt.title('Projection')
+	plt.xlabel('X')
+	plt.ylabel('Y')
+	plt.show()
 
-
+K = cameraMatrix(f, cx, cy)
 ax, ay, az = degToRad(rdx, rdy, rdz)
 R_tot = rotXYZ(ax, ay, az)
 T = transXYZ(tx, ty, tz)
 M_ext = np.column_stack((R_tot, T))
 p = project(K, M_ext, P_M)
 p = unscaleH2D(p)
+plotXY(p)
+
 
 
 A = np.zeros((N*2, 12))
@@ -94,11 +105,6 @@ print(T_est)
 # print(M_ext)
 # print(np.eye(3) @ K)
 
-plt.plot(p[0,:], p[1,:], 'ro')
-plt.title('Projection')
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.show()
 
 
 
