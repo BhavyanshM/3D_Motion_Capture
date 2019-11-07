@@ -2,27 +2,34 @@ import cv2
 import numpy as np
 
 
-cap = cv2.VideoCapture(1)
+img = cv2.imread("Chess.JPG")
 
-W = 1280
-H = 720
+rows, cols, channels = img.shape
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, W)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, H)
-
-while True:
-	# cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-	global frame
-	ret, frame = cap.read()
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 
 
-	print(frame.shape)
+u, v = 5, 5
+radius = 10
+red = (255, 10, 10)
+blue = (10, 255, 10)
+thickness = 1
 
-	cv2.imshow("Capture", frame)
+for i in range(rows-u):
+	for j in range(cols-v):
+		if gray[i-u][j-v] < 128 and gray[i-u][j+v] > 128 and gray[i+u][j+v] < 128 and gray[i+u][j-v] > 128:
+			print("RED:", i,j)
+			img = cv2.circle(img, (i,j), radius, red, thickness)
+
+		if gray[i-u][j-v] > 128 and gray[i-u][j+v] < 128 and gray[i+u][j+v] > 128 and gray[i+u][j-v] < 128:
+			print("BLUE:", i,j)
+			img = cv2.circle(img, (i,j), radius, blue, thickness)
 
 	if cv2.waitKey(1) & 0xFF == ord('q'):
 		break
 
-cap.release()
+cv2.imshow("Image", img)
+
+cv2.waitKey(0)
 cv2.destroyAllWindows()
