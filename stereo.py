@@ -23,8 +23,8 @@ while True:
 	# res = cv2.add(res, resB)
 	cv2.namedWindow("Image1", cv2.WINDOW_NORMAL)
 	cv2.namedWindow("Image2", cv2.WINDOW_NORMAL)
-	cv2.resizeWindow("Image1", 1200, 800)
-	cv2.resizeWindow("Image2", 1200, 800)
+	cv2.resizeWindow("Image1", 800, 600)
+	cv2.resizeWindow("Image2", 800, 600)
 
 	lower_red = np.array([47, 78, 93])
 	upper_red = np.array([72, 162, 245])
