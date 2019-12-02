@@ -1,9 +1,13 @@
+import sys
 import cv2
 import numpy as np
 import time
 import math
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
+from scipy.sparse import lil_matrix
+from mpl_toolkits import mplot3d
+np.set_printoptions(threshold=sys.maxsize)
 
 cap1 = cv2.VideoCapture(0)
 cap2 = cv2.VideoCapture(1)
@@ -12,49 +16,35 @@ cap1.set(cv2.CAP_PROP_FRAME_HEIGHT, 384)
 cap2.set(cv2.CAP_PROP_FRAME_WIDTH, 512)
 cap2.set(cv2.CAP_PROP_FRAME_HEIGHT, 384)
 
-n_cams, n_points, n_obs = 2, 200, 400
+n_cams, n_points, n_obs = 2, 10000, 20000
+
+# f = open('fast_params.txt', 'r')
+# plist = f.read().replace('[','').replace(']','').split()
+# f.close()
+# x = np.array(plist)
+# init_params = np.asfarray(x,float)
 
 init_params = np.random.random(n_cams*9 + n_points*3)
+print(init_params)
+
 points_2d = np.ones((n_obs, 2), dtype=int)
 cam_indices = np.zeros(n_obs, dtype=int)
 point_indices = np.zeros(n_obs, dtype=int)
 
-def cameraMatrix(f, cx, cy):
-	return np.array([[f, 0, cx],[0, f, cy],[0, 0, 1]])
+def rotate(points, rot_vecs):
+	"""Rotate points by given rotation vectors.
+	
+	Rodrigues' rotation formula is used.
+	"""
+	theta = np.linalg.norm(rot_vecs, axis=1)[:, np.newaxis]
+	with np.errstate(invalid='ignore'):
+		v = rot_vecs / theta
+		v = np.nan_to_num(v)
+	dot = np.sum(points * v, axis=1)[:, np.newaxis]
+	cos_theta = np.cos(theta)
+	sin_theta = np.sin(theta)
 
-def cartesian2d(points):
-	points[:,0] = np.divide(points[:,0], points[:,2])
-	points[:,1] = np.divide(points[:,1], points[:,2])
-	points[:,2] = np.divide(points[:,2], points[:,2])
-	return points
-
-def degToRad(dx,dy,dz):
-	return (rdx)*math.pi/180, (rdy)*math.pi/180, (rdz)*math.pi/180
-
-
-def rotX(ax):
-	return np.array([	[1,			0,			0		],
-					[0,			math.cos(ax), 	-math.sin(ax)],
-					[0, 		math.sin(ax), 	math.cos(ax)	]	])
-
-def rotY(ay):
-	return np.array([	[math.cos(ay), 	0, 		math.sin(ay)],
-					[0, 			1, 		0],
-					[-math.sin(ay), 0, 	math.cos(ay)]	])
-
-def rotZ(az):
-	return np.array([	[math.cos(az), 	-math.sin(az), 	0],
-					[math.sin(az), 	math.cos(az), 	0],
-					[0, 			0, 				1]			])
-
-def rotXYZ(ax, ay, az):
-	return rotZ(az) @ rotY(ay) @ rotX(ax)
-
-def rotate(points, rots):
-	rot_points = np.zeros_like(points)
-	for i in range(len(points)):
-		rot_points[i] = points[i] @ rotXYZ(rots[i,0], rots[i,1], rots[i,2])
-	return rot_points
+	return cos_theta * points + sin_theta * np.cross(v, points) + dot * (1 - cos_theta) * v
 
 
 def project2d(points, camera_params):
@@ -77,8 +67,24 @@ def residuals(params, n_cams, n_points, cam_indices, point_indices, points_2d):
 	points_proj = project2d(points_3d[point_indices], camera_params[cam_indices])
 	return (points_proj - points_2d).ravel()
 
+def bundle_adjustment_sparsity(n_cameras, n_points, camera_indices, point_indices):
+	m = camera_indices.size * 2
+	n = n_cameras * 9 + n_points * 3
+	A = lil_matrix((m, n), dtype=int)
+
+	i = np.arange(camera_indices.size)
+	for s in range(9):
+		A[2 * i, camera_indices * 9 + s] = 1
+		A[2 * i + 1, camera_indices * 9 + s] = 1
+
+	for s in range(3):
+		A[2 * i, n_cameras * 9 + point_indices * 3 + s] = 1
+		A[2 * i + 1, n_cameras * 9 + point_indices * 3 + s] = 1
+
+	return A
 
 correspondences = []
+f_net_data = open("net_data.csv", 'w+')
 px1, px2, py1, py2 = 0, 0, 0, 0
 
 while True:
@@ -114,13 +120,15 @@ while True:
 	canvas1 = np.zeros_like(img1, np.uint8)
 	canvas2 = np.zeros_like(img2, np.uint8)
 
-	if np.sum(mask1) > 25000 and np.sum(mask2) > 25000 and len(correspondences) < n_points:
+
+	if np.sum(mask1) > 21000 and np.sum(mask2) > 21000 and len(correspondences) < n_points:
 		pn = len(correspondences)
 		points_2d[pn*2, :] = np.array([px1, py1])
 		points_2d[pn*2 + 1, :] = np.array([px2, py2])
 		point_indices[pn*2], point_indices[pn*2 + 1] = pn, pn
 		cam_indices[pn*2], cam_indices[pn*2 + 1] = 0, 1
 		correspondences.append(corresp)
+		f_net_data.write("{},{},{},{}\n".format(corresp[0], corresp[1], corresp[2], corresp[3]))
 
 
 		for c in correspondences:
@@ -141,6 +149,7 @@ while True:
 		print(pn)
 
 	if(len(correspondences) == n_points):
+		f_net_data.close()
 		break
 	code = cv2.waitKeyEx(1)
 	if code == ord('q'):
@@ -151,16 +160,63 @@ while True:
 cv2.destroyAllWindows()
 print("Optimization started.")
 
+A = bundle_adjustment_sparsity(n_cams, n_points, cam_indices, point_indices)
+
 t0 = time.time()
-res = least_squares(residuals, init_params, verbose=2, ftol=1e-2, method='trf',args=(n_cams, n_points, cam_indices, point_indices, points_2d))
+res = least_squares(residuals,
+					init_params, 
+					jac_sparsity=A, 
+					x_scale='jac', 
+					verbose=2, 
+					ftol=1e-7, 
+					method='trf',
+					args=(n_cams, n_points, cam_indices, point_indices, points_2d))
 t1 = time.time()
 
-print(res.x)
+f = open('fast_params.txt', 'w+')
+f.write(str(res.x))
+f.close()
+
+cams = res.x[:n_cams*9].reshape((n_cams,9))
+pointsXYZ = res.x[n_cams*9:].reshape((n_points,3))
+
+f = open('final_params.txt', 'w+')
+f.write("Cameras:" + str(cams))
+f.write("\n")
+f.write("Points:" + str(pointsXYZ))
+f.close()
+
+
 print("Optimization took {0:.0f} seconds".format(t1 - t0))
 
 plt.rcParams.update({'font.size': 14})
+
+
 fig = plt.figure(figsize=(35,15))
-plt.plot(res.fun)
+ax = fig.add_subplot(1,2,1, projection='3d')
+x,y,z = list(pointsXYZ[:,0]), list(pointsXYZ[:,1]), list(pointsXYZ[:,2])
+ax.scatter(x,y,z, c='r', marker='o')
+
+print(cams.shape)
+for i in range(cams.shape[0]):
+	point = cams[i,3:6]
+	normal = cams[i,:3]
+	d = -point.dot(normal)
+
+	# create x,y
+	xr = np.arange(-0.5+point[0],0.5+point[0],0.05)
+	yr = np.arange(-0.5+point[0],0.5+point[0],0.05)
+	xx, yy = np.meshgrid(xr, yr)
+
+	# calculate corresponding z
+	z = (-normal[0] * xx - normal[1] * yy - d) * 1. /normal[2]
+
+	# plot the surface
+	ax.plot_surface(xx, yy, z)
+
+ax = fig.add_subplot(1,2,2)
+ax.plot(res.fun)
+
 plt.show()
 
 

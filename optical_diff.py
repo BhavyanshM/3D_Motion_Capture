@@ -29,7 +29,7 @@ while True:
 
 	diff = cv2.absdiff(img, first)
 	mask = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-	thresh = 10
+	thresh = 15
 	imask = mask>thresh
 	canvas = np.zeros_like(img, np.uint8)
 	canvas[imask] = img[imask]
