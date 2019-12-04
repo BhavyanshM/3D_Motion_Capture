@@ -57,40 +57,74 @@ def unscaleH2D(points):
 	points[2] = np.divide(points[2], points[2])
 	return points
 
-def project2d(corresp, out):
-	"""Convert 3-D points to 2-D by projecting onto images."""
-	print(out[0])
-	# X, Y, Z, rx, ry, rz, tx, ty, tz, f = (out[0], out[1], 
-	# 									 out[2], out[3], 
-	# 									 out[4], out[5], 
-	# 									 out[6], out[7], 
-	# 									 out[8], out[9])
-	X, Y, Z, rx, ry, rz, tx, ty, tz, f = 0,2.0,3.0,4,5,6,7,8,9,10
-	p3d = np.array([X, Y, Z, 1]).T
-	K = cameraMatrix(f, cx, cy)
-	R_tot = rotXYZ(rx, ry, rz)
-	T = transXYZ(tx, ty, tz)
-	M_ext = np.column_stack((R_tot, T))
-	p = project(K, M_ext, p3d)
-	p = unscaleH2D(p)
-	z = unscaleH2D(np.array([X,Y,Z]))
-	proj_corresp = np.hstack((z[:2], p[:2]))
+def project2d(pred):
+	X, Y, Z, rx, ry, rz, tx, ty, tz, f = 	tf.gather_nd(pred, [[0,0]]),\
+											tf.gather_nd(pred, [[0,1]]),\
+											tf.gather_nd(pred, [[0,2]]),\
+											tf.gather_nd(pred, [[0,3]]),\
+											tf.gather_nd(pred, [[0,4]]),\
+											tf.gather_nd(pred, [[0,5]]),\
+											tf.gather_nd(pred, [[0,6]]),\
+											tf.gather_nd(pred, [[0,7]]),\
+											tf.gather_nd(pred, [[0,8]]),\
+											tf.gather_nd(pred, [[0,9]])	
+
+
+	print("X:",X)
+
+	S = tf.stack([X,Y,Z,tf.constant([1], dtype=tf.float32)])
+	print("S:",S)
+
+	proj_corresp = pred
+
+	xc = tf.constant([cx], dtype=tf.float32)
+	yc = tf.constant([cy], dtype=tf.float32)
+
+	zr = tf.constant([0], dtype=tf.float32)
+	on = tf.constant([1], dtype=tf.float32)
+
+	K = tf.reshape(tf.stack([[f, zr, xc],[zr, f, yc],[zr, zr, on]]), [3,3])
+
+	print("K:",K)
+
+
+	Rx = tf.reshape(tf.stack([[on, zr, zr],[zr, tf.math.cos(rx), -tf.math.sin(rx)],[zr, tf.math.sin(rx), tf.math.cos(rx)]]), [3,3])
+	print("Rx:",Rx)
+	Ry = tf.reshape(tf.stack([[tf.math.cos(ry), zr, tf.math.sin(ry)],[zr, on, zr],[-tf.math.sin(ry), zr, tf.math.cos(ry)]]), [3,3])
+	print("Ry:",Ry)
+	Rz = tf.reshape(tf.stack([[tf.math.cos(rz), -tf.math.sin(rz), zr],[tf.math.sin(rz), tf.math.cos(rz), zr],[zr, zr, on]]), [3,3])
+	print("Rz:",Rz)
+
+	R = tf.matmul(Rz, tf.matmul(Ry,Rx))
+	print("R:",R)
+
+	T = tf.stack([tx,ty,tz])
+	print("T:",T)
+
+	M = tf.concat([R,T], axis=1)
+	print("M:",M)
+
+	P = tf.matmul(K,tf.matmul(M,S))
+	print("P:",P)
+
+	# K = cameraMatrix(f, cx, cy)
+	# R_tot = rotXYZ(rx, ry, rz)
+	# T = transXYZ(tx, ty, tz)
+	# M_ext = np.column_stack((R_tot, T))
+	# p = project(K, M_ext, p3d)
+	# p = unscaleH2D(p)
+	# z = unscaleH2D(np.array([X,Y,Z]))
+	
+	# p3d = np.array([X, Y, Z, 1]).T
+	# proj_corresp = np.hstack((z[:2], p[:2]))
+	
+
 	return proj_corresp
 
 def custom_loss(corresp):
 	def net_loss(y_true, y_pred):
-		# temp = np.hstack((corresp, corresp))
-		# temp = np.hstack((temp, corresp))
-		# proj_point = project2d(corresp, y_pred)
-		# a = tf.constant([[1],[0],[2],[-3]], dtype=tf.float32)
-		# x = np.zeros()
-		ind1 = [[0,1],]*10000
-		ind2 = [[0,2],]*10000
-		a = tf.gather_nd(corresp, ind1)
-		b = tf.gather_nd(y_pred, ind2)
-		print(a,b)
-		proj_point = tf.subtract(a, b)
-		return K.sum(K.abs(proj_point))
+		proj_point = project2d(y_pred)
+		return K.sum(K.abs(y_pred))
 
 	return net_loss
 
