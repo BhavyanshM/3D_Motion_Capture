@@ -2,10 +2,13 @@ import cv2
 import numpy as np
 import time
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
+
+
 cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
 cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
 cap.set(cv2.CAP_PROP_EXPOSURE, -4)
+time.sleep(2)
 # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 400)
 # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 300)
 	# img = cv2.imread("Chess.JPG")
@@ -16,7 +19,7 @@ num_frames = 0
 total_time = 0
 
 print("Sleeping")
-time.sleep(5)
+# time.sleep(5)
 ret, first = cap.read()
 print("Captured!")
 
@@ -40,9 +43,9 @@ while True:
 	cv2.resizeWindow('Result', 1800,1350)
 	cv2.imshow("Result", canvas)
 
-	cv2.namedWindow('First', cv2.WINDOW_NORMAL)
-	cv2.resizeWindow('First', 1800,1350)
-	cv2.imshow("First", first)
+	# cv2.namedWindow('First', cv2.WINDOW_NORMAL)
+	# cv2.resizeWindow('First', 1800,1350)
+	# cv2.imshow("First", first)
 
 
 	curTime = time.time()
